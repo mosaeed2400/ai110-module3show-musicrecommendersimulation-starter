@@ -121,3 +121,45 @@ def recommend_songs(user_prefs: Dict, songs: List[Dict], k: int = 5) -> List[Tup
 
     scored.sort(key=lambda item: item[1], reverse=True)
     return scored[:k]
+
+# --- EXPERIMENT: reweighted scoring ---------------------------------------
+# Hypothesis: genre's flat +2.0 lets a worse mood/energy fit win purely on
+# genre. Reweight to reduce genre's dominance and reward close energy more.
+#   genre match:      +1.0 (halved from 2.0)
+#   mood match:       +1.0 (unchanged)
+#   energy similarity: up to +3.0 (doubled from 1.5)
+# Max possible score = 1.0 + 1.0 + 3.0 = 5.0.
+# The originals above are unchanged; the CLI still calls them.
+
+def score_song_experimental(user_prefs: Dict, song: Dict) -> Tuple[float, List[str]]:
+    """
+    Experimental reweighting of score_song (genre +1.0, mood +1.0, energy up to +3.0).
+    """
+    score = 0.0
+    reasons: List[str] = []
+
+    if song["genre"] == user_prefs["genre"]:
+        score += 1.0
+        reasons.append("genre match (+1.0)")
+
+    if song["mood"] == user_prefs["mood"]:
+        score += 1.0
+        reasons.append("mood match (+1.0)")
+
+    energy_points = (1 - abs(song["energy"] - user_prefs["energy"])) * 3.0
+    score += energy_points
+    reasons.append(f"energy close to target (+{energy_points:.1f})")
+
+    return score, reasons
+
+def recommend_songs_experimental(user_prefs: Dict, songs: List[Dict], k: int = 5) -> List[Tuple[Dict, float, str]]:
+    """
+    Experimental variant of recommend_songs using score_song_experimental weights.
+    """
+    scored = []
+    for song in songs:
+        score, reasons = score_song_experimental(user_prefs, song)
+        scored.append((song, score, ", ".join(reasons)))
+
+    scored.sort(key=lambda item: item[1], reverse=True)
+    return scored[:k]

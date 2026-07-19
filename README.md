@@ -75,7 +75,7 @@ user = UserProfile(
 Max possible score (OOP path): 5.5 points
 Max possible score (functional/CLI path): 4.5 points
 
-**Expected bias:** Because genre and mood are exact-match categorical checks worth significant flat points, this system may over-prioritize genre matches even when a song's actual energy profile is a poor fit — for example, any "pop" song scores +2.0 regardless of how different its energy actually is from the user's target. This is a bias I plan to investigate further during testing in Phase 4.
+**Expected bias:** Because genre and mood are exact-match categorical checks worth significant flat points, this system may over-prioritize genre matches even when a song's actual energy profile is a poor fit — for example, any "pop" song scores +2.0 regardless of how different its energy actually is from the user's target. This bias was confirmed during Phase 4 testing — see `model_card.md` for the full analysis.
 
 ---
 
@@ -144,35 +144,45 @@ Because: energy close to target (+1.4)
 
 ## Experiments You Tried
 
-<!-- TODO (Phase 4): Document the experiments you ran. -->
+I tested the system with 3 standard profiles ("High-Energy Pop," "Chill Lofi," "Deep Intense Rock") plus 4 adversarial edge-case profiles designed to probe for weaknesses (a nonexistent mood, a genre/mood combo matching nothing in the catalog, an out-of-range energy value, and a genre-vs-fit conflict test). Full terminal output for all 7 profiles is documented in `model_card.md`'s Appendix.
 
-- What happened when you changed the weight on genre from 2.0 to 0.5
-- What happened when you added tempo or acousticness to the score
-- How did your system behave for different types of users (e.g., "High-Energy Pop," "Chill Lofi," "Deep Intense Rock," and any adversarial/edge-case profiles)
+**Weight Shift experiment:** I halved the genre weight (2.0 → 1.0) and doubled the energy weight (1.5 → 3.0) to test sensitivity. Across all 7 profiles, this compressed score margins everywhere and actually changed the top-5 ranking order in 2 of them. The clearest effect: Gym Hero (a strong mood/energy match but wrong genre) closed its score gap to Storm Runner from 2.02 points down to 1.06 — confirming that genre's flat +2.0 bonus was suppressing otherwise-strong matches. The tradeoff: Autumn Sonata, the catalog's only classical song, dropped out of the top 5 entirely once its genre bonus was halved, since its energy fit was poor. **Conclusion:** the reweighting made results different, not simply more accurate — it's a real tradeoff between genre fidelity and overall vibe similarity. Full before/after data is in `model_card.md`.
+
+**On genre coverage:** since 13 of the catalog's 15 genres appear in only one song, fans of underrepresented genres (rock, jazz, classical, country, etc.) can never get more than one true genre match in their top 5, regardless of any weight change — this is a data limitation, not a tuning problem.
 
 ---
 
 ## Limitations and Risks
 
-<!-- TODO (Phase 4, Step 4): Summarize limitations discovered during testing. -->
+Testing surfaced several concrete weaknesses beyond the ones anticipated at design time:
 
-Some known limitations of this design going in:
-- The catalog is very small (18 songs), so recommendations may feel repetitive regardless of scoring logic
-- It has no understanding of lyrics, language, or subjective quality — only numeric and categorical attributes
-- Genre and mood are broad categorical labels that can mask real differences between songs (e.g., two "intense" songs can have very different valence), which may cause the system to over- or under-value certain matches
-- With no other users' behavior to draw from, the system can't discover songs outside a user's stated preferences — it has no serendipity, unlike collaborative filtering
-- The project has two parallel scoring implementations (OOP and functional) that currently use slightly different recipes, which could confuse a future maintainer if not kept in sync
+- **The catalog is very small (18 songs) and genre coverage is thin** — 13 of 15 genres appear in only one song, so the system can't distinguish "likes this genre" from "likes this one song," and niche-genre fans structurally cannot receive a fully genre-coherent top 5.
+- **Genre acts as a flat, binary bonus with no partial credit and no concept of similarity** — "pop" vs. "rock" scores identically to "pop" vs. "polka," even though some genres are much closer neighbors than others. This can let a poor overall fit beat a near-perfect mood/energy match, purely on a categorical label (confirmed directly: see the Gym Hero vs. Storm Runner case in `model_card.md`).
+- **There is no input validation.** An out-of-range energy value (e.g., 2.0) produces literal negative scores and a broken-looking explanation string (e.g., `"energy close to target (+-0.1)"`) instead of being rejected or clamped.
+- **Genre/mood values not present in the dataset fail silently** rather than raising an error or warning — the system confidently returns results even when a stated preference matched nothing at all.
+- **Some preference combinations are impossible to satisfy no matter how the weights are tuned** — e.g., every acoustic song in the catalog is also low-energy, so a "loud and acoustic" listener is asking for something the data cannot provide.
+- **`tempo_bpm`, `valence`, and `danceability` are loaded from the CSV but never actually used in scoring**, in either the OOP or functional path — a listener who cares about danceability has no way to express that preference, even though the data already exists.
+- It has no understanding of lyrics, language, or subjective quality — only numeric and categorical attributes.
+- With no other users' behavior to draw from, the system can't discover songs outside a user's stated preferences — it has no serendipity, unlike collaborative filtering.
+- The project has two parallel scoring implementations (OOP and functional) that use slightly different recipes (the functional/CLI path doesn't use acousticness at all), which could confuse a future maintainer if not kept in sync.
 
-You will go deeper on this in your model card.
+The full bias analysis, including a dataset-level check for systemic issues, is documented in `model_card.md`, Section 6.
 
 ---
 
 ## Reflection
 
-Read and complete `model_card.md`:
+This project taught me that a scoring system can be completely "correct" by its own
+math and still produce results that feel wrong — a song can lose decisively not
+because it's a poor match, but because of a structural blind spot in how the
+weights are balanced (see Gym Hero vs. Storm Runner in the Model Card). AI tools
+were most useful when I asked them to actively try to break my own logic with
+adversarial profiles, rather than just build forward — but I also learned to verify
+their claims against real output rather than trusting them outright, since one
+early claim about genre "always" dominating didn't fully hold up once I ran the
+actual numbers.
 
-[**Model Card**](model_card.md)
+The full reflection, including what surprised me and what I'd change next, is in
+[model_card.md](model_card.md), Section 9.
 
-<!-- TODO (Phase 5): Write 1-2 paragraphs here about what you learned:
-- about how recommenders turn data into predictions
-- about where bias or unfairness could show up in systems like this -->
+Read the complete Model Card here: [**Model Card**](model_card.md)
