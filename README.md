@@ -79,19 +79,32 @@ Max possible score (functional/CLI path): 4.5 points
 
 ---
 
+## Optional Extensions
+
+Beyond the core project, I implemented all four optional extensions:
+
+1. **Advanced Song Features** — added `popularity`, `release_decade`, `explicit`, `vocal_type`, and `detailed_mood_tags` to the dataset, with an optional popularity-similarity scoring bonus.
+2. **Multiple Scoring Modes** — a Strategy pattern (`STRATEGY` constant in `main.py`) lets you switch between Balanced, Genre-First, Mood-First, and Energy-Focused ranking, all sharing one scoring function via configurable weights.
+3. **Diversity and Fairness Logic** — a `DIVERSITY_MODE` toggle in `main.py` penalizes repeated artists/genres in the top-k results, directly addressing the genre-imbalance bias documented in `model_card.md`.
+4. **Visual Summary Table** — CLI output renders as a formatted table (via `tabulate`) when the package is installed, with a graceful plain-text fallback if it isn't.
+
+Full prompts, agent-generated changes, and manual verification notes for all four are documented in [`ai_interactions.md`](ai_interactions.md).
+
+---
+
 ## Getting Started
 
 ### Setup
 
-1. Create a virtual environment (optional but recommended):
+1. Create a virtual environment (recommended):
 
 ```bash
-   python -m venv .venv
+   python3 -m venv .venv
    source .venv/bin/activate      # Mac or Linux
    .venv\Scripts\activate         # Windows
 ```
 
-2. Install dependencies:
+2. Install dependencies (includes `tabulate` for formatted table output):
 
 ```bash
    pip install -r requirements.txt
@@ -102,6 +115,8 @@ Max possible score (functional/CLI path): 4.5 points
 ```bash
    python3 -m src.main
 ```
+
+To try the optional extensions, edit the `STRATEGY` and `DIVERSITY_MODE` constants near the top of `src/main.py`.
 
 ### Running Tests
 
@@ -116,6 +131,8 @@ You can add more tests in `tests/test_recommender.py`.
 ---
 
 ## Sample Recommendation Output
+
+*Note: this output reflects the core project's default behavior (before the "Visual Summary Table" extension was added). With `tabulate` installed, output now renders as a formatted table — see `ai_interactions.md` for a rendered example.*
 
 ```
 Loaded songs: 18
